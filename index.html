@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VRCardio - Test Dashboard</title>
+<style>
+  :root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a; --accent: #6c63ff; --accent-hover: #5a52e0; --danger: #e74c3c; --danger-hover: #c0392b; --success: #2ecc71; --text: #e4e4e7; --muted: #888; --input-bg: #22252f; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  header span { color: var(--muted); font-size: 0.85rem; }
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1rem; gap: 0; overflow-x: auto; }
+  .tab { padding: 0.75rem 1.25rem; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); font-size: 0.9rem; white-space: nowrap; transition: all 0.15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .content { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 1rem; margin-bottom: 1rem; color: var(--accent); }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+  label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+  input, select, textarea { width: 100%; padding: 0.5rem 0.65rem; background: var(--input-bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 0.85rem; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+  .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: var(--danger-hover); }
+  .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+  .actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th, td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; position: sticky; top: 0; background: var(--surface); }
+  tr:hover td { background: rgba(108,99,255,0.04); }
+  .table-wrap { overflow-x: auto; }
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; border-radius: 6px; color: #fff; font-size: 0.85rem; z-index: 999; animation: slideIn 0.25s ease; }
+  .toast.ok { background: var(--success); }
+  .toast.err { background: var(--danger); }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .empty { text-align: center; padding: 2rem; color: var(--muted); }
+  .id-cell { font-family: monospace; font-size: 0.72rem; cursor: pointer; }
+  .id-cell:hover { color: var(--accent); }
+  .file-upload { display: flex; align-items: center; gap: 0.5rem; }
+  .file-upload input[type="file"] { flex: 1; padding: 0.35rem; }
+  .file-upload .file-name { font-size: 0.75rem; color: var(--success); word-break: break-all; }
+  .info-box { background: rgba(108,99,255,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 0.75rem 1rem; margin-top: 0.75rem; font-size: 0.82rem; color: var(--text); }
+  .info-box strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VRCardio Orchestrator</h1>
+  <span>Test Dashboard</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="patients">Patients</div>
+  <div class="tab" data-tab="identity">Patient Identity</div>
+  <div class="tab" data-tab="ecg">ECG Records</div>
+  <div class="tab" data-tab="imaging">Imaging</div>
+  <div class="tab" data-tab="diagnoses">Diagnoses</div>
+</div>
+
+<div class="content">
+
+  <!-- ═══════ PATIENTS ═══════ -->
+  <div class="panel active" id="panel-patients">
+    <div class="card">
+      <h3>Create Patient</h3>
+      <div class="form-grid">
+        <div><label>Pseudonym *</label><input id="p-pseudonym" placeholder="SUB-001"></div>
+        <div><label>Metadata (JSON)</label><input id="p-metadata" placeholder='{"notes":"..."}' value="{}"></div>
+      </div>
+      <div class="actions"><button class="btn btn-primary" onclick="createPatient()">Create</button></div>
+    </div>
+    <div class="card">
+      <h3>Patients</h3>
+      <div class="actions" style="margin-top:0;margin-bottom:0.75rem"><button class="btn btn-primary btn-sm" onclick="loadPatients()">Refresh</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Patient ID</th><th>Pseudonym</th><th>Created</th><th>Updated</th><th>Metadata</th><th></th></tr></thead><tbody id="patients-body"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ═══════ PATIENT IDENTITY ═══════ -->
+  <div class="panel" id="panel-identity">
+    <div class="card">
+      <h3>Create / Update Identity</h3>
+      <div class="form-grid">
+        <div><label>Patient ID *</label><input id="id-patient" placeholder="UUID"></div>
+        <div><label>Full Name</label><input id="id-fullname" placeholder="John Doe"></div>
+        <div><label>Ethnicity</label>
+          <select id="id-ethnicity"><option value="">--</option><option>hispanic</option><option>caucasian</option><option>african</option><option>asian</option><option>other</option></select>
+        </div>
+        <div><label>Birth Date</label><input id="id-birthdate" type="date"></div>
+        <div><label>National ID</label><input id="id-national" placeholder="12345678A"></div>
+        <div><label>Phone</label><input id="id-phone" placeholder="+34 600 000 000"></div>
+        <div><label>Email</label><input id="id-email" type="email" placeholder="john@example.com"></div>
+        <div><label>Sex</label>
+          <select id="id-sex"><option value="">--</option><option value="M">M</option><option value="F">F</option><option value="other">other</option><option value="unknown">unknown</option></select>
+        </div>
+        <div><label>Height (cm)</label><input id="id-height" type="number" step="0.1"></div>
+        <div><label>Weight (kg)</label><input id="id-weight" type="number" step="0.1"></div>
+        <div><label>Metadata (JSON)</label><input id="id-metadata" value="{}"></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="createIdentity()">Create</button>
+        <button class="btn btn-primary" onclick="updateIdentity()">Update</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Lookup Identity</h3>
+      <div class="form-grid">
+        <div><label>Patient ID</label><input id="id-lookup" placeholder="UUID"></div>
+      </div>
+      <div class="actions" style="margin-top:0.5rem">
+        <button class="btn btn-primary btn-sm" onclick="loadIdentity()">Load</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteIdentity()">Delete</button>
+      </div>
+      <div id="identity-info" class="info-box" style="display:none"></div>
+      <div class="table-wrap" style="margin-top:0.75rem"><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody id="identity-body"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ═══════ ECG RECORDS ═══════ -->
+  <div class="panel" id="panel-ecg">
+    <div class="card">
+      <h3>Create ECG Record</h3>
+      <div class="form-grid">
+        <div><label>Patient ID *</label><input id="ecg-patient" placeholder="UUID"></div>
+        <div><label>Acquisition Date</label><input id="ecg-date" type="datetime-local"></div>
+        <div><label>Device Model</label><input id="ecg-device" placeholder="GE MAC 5500"></div>
+        <div><label>Num Leads</label>
+          <select id="ecg-leads"><option value="">--</option><option>3</option><option>6</option><option>12</option><option>34</option></select>
+        </div>
+        <div><label>Lead Names (JSON array)</label><input id="ecg-leadnames" placeholder='["I","II","III"]' value="[]"></div>
+        <div><label>Sampling Rate (Hz)</label><input id="ecg-sr" type="number" placeholder="500"></div>
+        <div><label>Resolution uV/bit</label><input id="ecg-res" type="number" step="0.01"></div>
+        <div><label>Duration (s)</label><input id="ecg-dur" type="number" step="0.1"></div>
+        <div><label>File</label><div class="file-upload"><input id="ecg-file-input" type="file"><span id="ecg-file-name" class="file-name"></span></div><input id="ecg-file" type="hidden"></div>
+        <div><label>Metadata (JSON)</label><input id="ecg-metadata" value="{}"></div>
+      </div>
+      <div class="actions"><button class="btn btn-primary" onclick="createEcg()">Create</button></div>
+    </div>
+    <div class="card">
+      <h3>ECG Records</h3>
+      <div class="actions" style="margin-top:0;margin-bottom:0.75rem"><button class="btn btn-primary btn-sm" onclick="loadEcgs()">Refresh</button></div>
+      <div class="table-wrap"><table><thead><tr><th>ECG ID</th><th>Patient ID</th><th>Date</th><th>Device</th><th>Leads</th><th>Hz</th><th>Duration</th><th></th></tr></thead><tbody id="ecg-body"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ═══════ IMAGING ═══════ -->
+  <div class="panel" id="panel-imaging">
+    <div class="card">
+      <h3>Create Imaging Study</h3>
+      <div class="form-grid">
+        <div><label>Patient ID *</label><input id="img-patient" placeholder="UUID"></div>
+        <div><label>Modality</label>
+          <select id="img-modality"><option value="">--</option><option>CT</option><option>MRI</option><option>CT_angio</option><option>MRI_cine</option><option>MRI_LGE</option><option>echocardiogram</option></select>
+        </div>
+        <div><label>Acquisition Date</label><input id="img-date" type="date"></div>
+        <div><label>Voxel Spacing mm (JSON)</label><input id="img-voxel" placeholder="[0.5, 0.5, 1.0]" value="[]"></div>
+        <div><label>Dimensions (JSON)</label><input id="img-dims" placeholder="[512, 512, 300]" value="[]"></div>
+        <div><label>File</label><div class="file-upload"><input id="img-file-input" type="file"><span id="img-file-name" class="file-name"></span></div><input id="img-file" type="hidden"></div>
+        <div><label>Segmentation File</label><div class="file-upload"><input id="img-seg-input" type="file"><span id="img-seg-name" class="file-name"></span></div><input id="img-seg" type="hidden"></div>
+        <div><label>Metadata (JSON)</label><input id="img-metadata" value="{}"></div>
+      </div>
+      <div class="actions"><button class="btn btn-primary" onclick="createImaging()">Create</button></div>
+    </div>
+    <div class="card">
+      <h3>Imaging Studies</h3>
+      <div class="actions" style="margin-top:0;margin-bottom:0.75rem"><button class="btn btn-primary btn-sm" onclick="loadImaging()">Refresh</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Study ID</th><th>Patient ID</th><th>Modality</th><th>Date</th><th>Voxel</th><th>Dimensions</th><th>File</th><th></th></tr></thead><tbody id="imaging-body"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ═══════ DIAGNOSES ═══════ -->
+  <div class="panel" id="panel-diagnoses">
+    <div class="card">
+      <h3>Create Diagnosis</h3>
+      <div class="form-grid">
+        <div><label>Patient ID *</label><input id="dx-patient" placeholder="UUID"></div>
+        <div><label>Source</label>
+          <select id="dx-source"><option value="">--</option><option>ecg_auto</option><option>ecg_manual</option><option>imaging</option><option>clinical</option><option>pathology</option></select>
+        </div>
+        <div><label>Code System</label>
+          <select id="dx-system"><option value="">--</option><option>ICD10</option><option>ICD11</option><option>SNOMED</option><option>custom</option></select>
+        </div>
+        <div><label>Code</label><input id="dx-code" placeholder="I48.0"></div>
+        <div><label>Description</label><input id="dx-desc" placeholder="Atrial fibrillation"></div>
+        <div><label>Diagnosed Date</label><input id="dx-date" type="date"></div>
+        <div><label>Notes</label><input id="dx-notes"></div>
+        <div><label>Metadata (JSON)</label><input id="dx-metadata" value="{}"></div>
+      </div>
+      <div class="actions"><button class="btn btn-primary" onclick="createDiagnosis()">Create</button></div>
+    </div>
+    <div class="card">
+      <h3>Diagnoses</h3>
+      <div class="actions" style="margin-top:0;margin-bottom:0.75rem"><button class="btn btn-primary btn-sm" onclick="loadDiagnoses()">Refresh</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Diagnosis ID</th><th>Patient ID</th><th>Source</th><th>System</th><th>Code</th><th>Description</th><th>Date</th><th></th></tr></thead><tbody id="diagnoses-body"></tbody></table></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:10000';
+
+// ── Helpers ─────────────────────────────────────
+
+function toast(msg, ok = true) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (ok ? 'ok' : 'err');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function val(id) { return document.getElementById(id).value.trim(); }
+function numOrNull(id) { const v = val(id); return v ? Number(v) : null; }
+function jsonOrNull(id) { try { const v = val(id); return v ? JSON.parse(v) : null; } catch { toast('Invalid JSON in ' + id, false); return null; } }
+function orNull(v) { return v === '' || v === undefined ? null : v; }
+function short(uuid) { return uuid ? uuid.substring(0, 8) + '...' : '-'; }
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+  return data;
+}
+
+function copyId(id) {
+  navigator.clipboard.writeText(id);
+  toast('Copied: ' + id);
+}
+
+async function uploadFile(fileType, inputId, hiddenId, nameSpanId) {
+  const input = document.getElementById(inputId);
+  if (!input.files || !input.files[0]) return null;
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(API + '/upload/' + fileType, { method: 'POST', body: formData });
+  if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Upload failed'); }
+  const data = await res.json();
+  document.getElementById(hiddenId).value = data.file_path;
+  document.getElementById(nameSpanId).textContent = file.name;
+  return data.file_path;
+}
+
+// ── Tabs ────────────────────────────────────────
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════════
+//  PATIENTS
+// ═══════════════════════════════════════════════
+
+async function loadPatients() {
+  try {
+    const rows = await api('GET', '/patients');
+    const tb = document.getElementById('patients-body');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">No patients yet</td></tr>'; return; }
+    tb.innerHTML = rows.map(r => `<tr>
+      <td class="id-cell" title="${r.patient_id}" onclick="copyId('${r.patient_id}')">${short(r.patient_id)}</td>
+      <td>${r.pseudonym}</td>
+      <td>${r.created_at?.substring(0,16) || '-'}</td>
+      <td>${r.updated_at?.substring(0,16) || '-'}</td>
+      <td>${JSON.stringify(r.metadata || {})}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deletePatient('${r.patient_id}')">Del</button></td>
+    </tr>`).join('');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function createPatient() {
+  try {
+    const body = { pseudonym: val('p-pseudonym'), metadata: jsonOrNull('p-metadata') || {} };
+    if (!body.pseudonym) { toast('Pseudonym is required', false); return; }
+    await api('POST', '/patients', body);
+    toast('Patient created');
+    loadPatients();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deletePatient(id) {
+  if (!confirm('Delete patient and ALL related data?')) return;
+  try { await api('DELETE', '/patients/' + id); toast('Patient deleted'); loadPatients(); }
+  catch (e) { toast(e.message, false); }
+}
+
+// ═══════════════════════════════════════════════
+//  PATIENT IDENTITY
+// ═══════════════════════════════════════════════
+
+async function loadIdentity() {
+  const pid = val('id-lookup') || val('id-patient');
+  if (!pid) { toast('Enter a patient ID', false); return; }
+  const infoBox = document.getElementById('identity-info');
+  const tb = document.getElementById('identity-body');
+  infoBox.style.display = 'none';
+  try {
+    const r = await api('GET', '/patients/' + pid + '/identity');
+    const fields = ['patient_id','full_name','ethnicity','birth_date','national_id','phone','email','sex','height_cm','weight_kg','metadata'];
+    tb.innerHTML = fields.map(f => {
+      let v = r[f]; if (typeof v === 'object') v = JSON.stringify(v);
+      return `<tr><td>${f}</td><td>${v ?? '-'}</td></tr>`;
+    }).join('');
+  } catch (e) {
+    tb.innerHTML = '';
+    if (e.message === 'Identity not found') {
+      infoBox.style.display = 'block';
+      infoBox.innerHTML = '<strong>No identity record found</strong> for this patient. Identity is a separate table &mdash; you must <strong>create</strong> one first using the form above. Paste the Patient ID in the form, fill in the fields, and click <strong>Create</strong>.';
+      document.getElementById('id-patient').value = pid;
+    } else {
+      toast(e.message, false);
+    }
+  }
+}
+
+function identityBody() {
+  const body = {};
+  const m = { full_name: 'id-fullname', ethnicity: 'id-ethnicity', birth_date: 'id-birthdate', national_id: 'id-national', phone: 'id-phone', email: 'id-email', sex: 'id-sex' };
+  for (const [k, id] of Object.entries(m)) { const v = val(id); if (v) body[k] = v; }
+  const h = numOrNull('id-height'); if (h !== null) body.height_cm = h;
+  const w = numOrNull('id-weight'); if (w !== null) body.weight_kg = w;
+  body.metadata = jsonOrNull('id-metadata') || {};
+  return body;
+}
+
+async function createIdentity() {
+  const pid = val('id-patient');
+  if (!pid) { toast('Patient ID is required', false); return; }
+  try { await api('POST', '/patients/' + pid + '/identity', identityBody()); toast('Identity created'); }
+  catch (e) { toast(e.message, false); }
+}
+
+async function updateIdentity() {
+  const pid = val('id-patient');
+  if (!pid) { toast('Patient ID is required', false); return; }
+  try { await api('PUT', '/patients/' + pid + '/identity', identityBody()); toast('Identity updated'); }
+  catch (e) { toast(e.message, false); }
+}
+
+async function deleteIdentity() {
+  const pid = val('id-lookup') || val('id-patient');
+  if (!pid) { toast('Enter a patient ID', false); return; }
+  if (!confirm('Delete identity for this patient?')) return;
+  try { await api('DELETE', '/patients/' + pid + '/identity'); toast('Identity deleted'); document.getElementById('identity-body').innerHTML = ''; }
+  catch (e) { toast(e.message, false); }
+}
+
+// ═══════════════════════════════════════════════
+//  ECG RECORDS
+// ═══════════════════════════════════════════════
+
+async function loadEcgs() {
+  try {
+    const rows = await api('GET', '/ecg-records');
+    const tb = document.getElementById('ecg-body');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No ECG records</td></tr>'; return; }
+    tb.innerHTML = rows.map(r => `<tr>
+      <td class="id-cell" title="${r.ecg_id}" onclick="copyId('${r.ecg_id}')">${short(r.ecg_id)}</td>
+      <td class="id-cell" title="${r.patient_id}" onclick="copyId('${r.patient_id}')">${short(r.patient_id)}</td>
+      <td>${r.acquisition_date?.substring(0,16) || '-'}</td>
+      <td>${r.device_model || '-'}</td>
+      <td>${r.num_leads || '-'}</td>
+      <td>${r.sampling_rate_hz || '-'}</td>
+      <td>${r.duration_seconds ? r.duration_seconds + 's' : '-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteEcg('${r.ecg_id}')">Del</button></td>
+    </tr>`).join('');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function createEcg() {
+  const pid = val('ecg-patient');
+  if (!pid) { toast('Patient ID is required', false); return; }
+  try {
+    await uploadFile('ecgs', 'ecg-file-input', 'ecg-file', 'ecg-file-name');
+    const body = {
+      patient_id: pid,
+      acquisition_date: orNull(val('ecg-date')),
+      device_model: orNull(val('ecg-device')),
+      num_leads: numOrNull('ecg-leads'),
+      lead_names: jsonOrNull('ecg-leadnames') || [],
+      sampling_rate_hz: numOrNull('ecg-sr'),
+      resolution_uv_per_bit: numOrNull('ecg-res'),
+      duration_seconds: numOrNull('ecg-dur'),
+      file_path: orNull(val('ecg-file')),
+      metadata: jsonOrNull('ecg-metadata') || {},
+    };
+    await api('POST', '/ecg-records', body);
+    toast('ECG created');
+    loadEcgs();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteEcg(id) {
+  if (!confirm('Delete this ECG record?')) return;
+  try { await api('DELETE', '/ecg-records/' + id); toast('ECG deleted'); loadEcgs(); }
+  catch (e) { toast(e.message, false); }
+}
+
+// ═══════════════════════════════════════════════
+//  IMAGING
+// ═══════════════════════════════════════════════
+
+async function loadImaging() {
+  try {
+    const rows = await api('GET', '/imaging');
+    const tb = document.getElementById('imaging-body');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No imaging studies</td></tr>'; return; }
+    tb.innerHTML = rows.map(r => `<tr>
+      <td class="id-cell" title="${r.study_id}" onclick="copyId('${r.study_id}')">${short(r.study_id)}</td>
+      <td class="id-cell" title="${r.patient_id}" onclick="copyId('${r.patient_id}')">${short(r.patient_id)}</td>
+      <td>${r.modality || '-'}</td>
+      <td>${r.acquisition_date || '-'}</td>
+      <td>${JSON.stringify(r.voxel_spacing_mm || [])}</td>
+      <td>${JSON.stringify(r.dimensions || [])}</td>
+      <td>${r.file_path || '-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteImaging('${r.study_id}')">Del</button></td>
+    </tr>`).join('');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function createImaging() {
+  const pid = val('img-patient');
+  if (!pid) { toast('Patient ID is required', false); return; }
+  try {
+    await uploadFile('imaging', 'img-file-input', 'img-file', 'img-file-name');
+    await uploadFile('imaging', 'img-seg-input', 'img-seg', 'img-seg-name');
+    const body = {
+      patient_id: pid,
+      modality: orNull(val('img-modality')),
+      acquisition_date: orNull(val('img-date')),
+      voxel_spacing_mm: jsonOrNull('img-voxel') || [],
+      dimensions: jsonOrNull('img-dims') || [],
+      file_path: orNull(val('img-file')),
+      segmentation_path: orNull(val('img-seg')),
+      metadata: jsonOrNull('img-metadata') || {},
+    };
+    await api('POST', '/imaging', body);
+    toast('Imaging study created');
+    loadImaging();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteImaging(id) {
+  if (!confirm('Delete this imaging study?')) return;
+  try { await api('DELETE', '/imaging/' + id); toast('Imaging deleted'); loadImaging(); }
+  catch (e) { toast(e.message, false); }
+}
+
+// ═══════════════════════════════════════════════
+//  DIAGNOSES
+// ═══════════════════════════════════════════════
+
+async function loadDiagnoses() {
+  try {
+    const rows = await api('GET', '/diagnoses');
+    const tb = document.getElementById('diagnoses-body');
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No diagnoses</td></tr>'; return; }
+    tb.innerHTML = rows.map(r => `<tr>
+      <td class="id-cell" title="${r.diagnosis_id}" onclick="copyId('${r.diagnosis_id}')">${short(r.diagnosis_id)}</td>
+      <td class="id-cell" title="${r.patient_id}" onclick="copyId('${r.patient_id}')">${short(r.patient_id)}</td>
+      <td>${r.source || '-'}</td>
+      <td>${r.code_system || '-'}</td>
+      <td>${r.code || '-'}</td>
+      <td>${r.description || '-'}</td>
+      <td>${r.diagnosed_date || '-'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteDiagnosis('${r.diagnosis_id}')">Del</button></td>
+    </tr>`).join('');
+  } catch (e) { toast(e.message, false); }
+}
+
+async function createDiagnosis() {
+  const pid = val('dx-patient');
+  if (!pid) { toast('Patient ID is required', false); return; }
+  const body = {
+    patient_id: pid,
+    source: orNull(val('dx-source')),
+    code_system: orNull(val('dx-system')),
+    code: orNull(val('dx-code')),
+    description: orNull(val('dx-desc')),
+    diagnosed_date: orNull(val('dx-date')),
+    notes: orNull(val('dx-notes')),
+    metadata: jsonOrNull('dx-metadata') || {},
+  };
+  try { await api('POST', '/diagnoses', body); toast('Diagnosis created'); loadDiagnoses(); }
+  catch (e) { toast(e.message, false); }
+}
+
+async function deleteDiagnosis(id) {
+  if (!confirm('Delete this diagnosis?')) return;
+  try { await api('DELETE', '/diagnoses/' + id); toast('Diagnosis deleted'); loadDiagnoses(); }
+  catch (e) { toast(e.message, false); }
+}
+
+// ── Initial load ────────────────────────────────
+loadPatients();
+</script>
+</body>
+</html>
